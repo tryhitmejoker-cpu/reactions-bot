@@ -2,17 +2,18 @@
 import asyncio
 import os
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 from telethon.tl.functions.messages import SendReactionRequest
 from telethon.tl.types import ReactionEmoji
 
 API_ID       = int(os.environ["API_ID"])
 API_HASH     = os.environ["API_HASH"]
-PHONE        = os.environ["PHONE"]
+SESSION      = os.environ["SESSION_STRING"]
 ADMIN_ID     = int(os.environ["ADMIN_ID"])
 
-client = TelegramClient("session", API_ID, API_HASH)
+client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
-pending = {}  # store forwarded message info per user
+pending = {}
 
 @client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
 async def handler(event):
@@ -21,7 +22,6 @@ async def handler(event):
     if user_id != ADMIN_ID:
         return
 
-    # Step 1 — forwarded message received
     if event.forward and user_id not in pending:
         pending[user_id] = {
             "chat_id": event.forward.chat_id,
@@ -33,7 +33,6 @@ async def handler(event):
         )
         return
 
-    # Step 2 — emoji received
     if user_id in pending and "emoji" not in pending[user_id]:
         emoji = event.text.strip()
         if not emoji:
@@ -43,7 +42,6 @@ async def handler(event):
         await event.reply(f"Got it! {emoji}\n\nNow how many reactions do you want to add?")
         return
 
-    # Step 3 — amount received
     if user_id in pending and "emoji" in pending[user_id] and "amount" not in pending[user_id]:
         try:
             amount = int(event.text.strip())
@@ -86,7 +84,7 @@ async def handler(event):
     )
 
 async def main():
-    await client.start(phone=PHONE)
+    await client.start()
     print("Reactions bot running...")
     await client.run_until_disconnected()
 
