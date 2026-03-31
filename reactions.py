@@ -4,7 +4,7 @@ import os
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.functions.messages import SendReactionRequest
-from telethon.tl.types import ReactionEmoji
+from telethon.tl.types import ReactionEmoji, PeerChannel
 
 API_ID       = int(os.environ["API_ID"])
 API_HASH     = os.environ["API_HASH"]
@@ -23,10 +23,18 @@ async def handler(event):
         return
 
     if event.forward and user_id not in pending:
-        msg_id = (event.forward.channel_post or
-                  event.forward.saved_from_msg_id or
-                  event.id)
-        chat_id = event.forward.chat_id or event.forward.saved_from_peer
+        fwd = event.forward
+        msg_id = fwd.channel_post or fwd.saved_from_msg_id or event.id
+
+        # Get the correct peer
+        if fwd.saved_from_peer:
+            chat_id = fwd.saved_from_peer
+        elif fwd.chat_id:
+            chat_id = PeerChannel(int(str(fwd.chat_id).replace("-100", "")))
+        else:
+            await event.reply("❌ Could not read the post. Make sure you forward directly from the channel.")
+            return
+
         pending[user_id] = {
             "chat_id": chat_id,
             "msg_id": int(msg_id)
