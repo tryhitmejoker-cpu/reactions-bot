@@ -23,9 +23,13 @@ async def handler(event):
         return
 
     if event.forward and user_id not in pending:
+        msg_id = (event.forward.channel_post or
+                  event.forward.saved_from_msg_id or
+                  event.id)
+        chat_id = event.forward.chat_id or event.forward.saved_from_peer
         pending[user_id] = {
-            "chat_id": event.forward.chat_id,
-            "msg_id": event.forward.channel_post or event.forward.saved_from_msg_id
+            "chat_id": chat_id,
+            "msg_id": int(msg_id)
         }
         await event.reply(
             "✅ Post received!\n\n"
