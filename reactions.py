@@ -25,41 +25,34 @@ async def handler(event):
     if event.forward and user_id not in pending:
         fwd = event.forward
         msg_id = fwd.channel_post or fwd.saved_from_msg_id or event.id
+        chat_id = fwd.saved_from_peer or fwd.chat_id
 
-        # Get the correct peer
-        if fwd.saved_from_peer:
-            chat_id = fwd.saved_from_peer
-        elif fwd.chat_id:
-            chat_id = PeerChannel(int(str(fwd.chat_id).replace("-100", "")))
-        else:
-            await event.reply("❌ Could not read the post. Make sure you forward directly from the channel.")
-            return
+        # Debug info
+        await event.reply(
+            f"🔍 Debug info:\n"
+            f"chat_id: {chat_id}\n"
+            f"msg_id: {msg_id}\n"
+            f"channel_post: {fwd.channel_post}\n"
+            f"saved_from_msg_id: {fwd.saved_from_msg_id}\n"
+            f"saved_from_peer: {fwd.saved_from_peer}"
+        )
 
         pending[user_id] = {
             "chat_id": chat_id,
             "msg_id": int(msg_id)
         }
-        await event.reply(
-            "✅ Post received!\n\n"
-            "Now send me the emoji you want to react with (e.g. 🔥)"
-        )
+        await event.reply("Now send emoji:")
         return
 
     if user_id in pending and "emoji" not in pending[user_id]:
         emoji = event.text.strip()
-        if not emoji:
-            await event.reply("Please send a valid emoji.")
-            return
         pending[user_id]["emoji"] = emoji
-        await event.reply(f"Got it! {emoji}\n\nNow how many reactions do you want to add?")
+        await event.reply(f"Got it! {emoji}\n\nHow many?")
         return
 
     if user_id in pending and "emoji" in pending[user_id] and "amount" not in pending[user_id]:
         try:
             amount = int(event.text.strip())
-            if amount < 1 or amount > 100:
-                await event.reply("Please send a number between 1 and 100.")
-                return
         except ValueError:
             await event.reply("Please send a valid number.")
             return
@@ -67,10 +60,7 @@ async def handler(event):
         pending[user_id]["amount"] = amount
         data = pending[user_id]
 
-        await event.reply(
-            f"⏳ Adding {data['amount']} x {data['emoji']} reactions...\n"
-            f"This may take a moment!"
-        )
+        await event.reply(f"⏳ Adding {data['amount']} x {data['emoji']} reactions...")
 
         try:
             for i in range(data["amount"]):
@@ -81,19 +71,12 @@ async def handler(event):
                 ))
                 await asyncio.sleep(0.5)
 
-            await event.reply(
-                f"✅ Done! Added {data['amount']} x {data['emoji']} reactions!"
-            )
+            await event.reply(f"✅ Done!")
         except Exception as e:
             await event.reply(f"❌ Error: {str(e)}")
 
         del pending[user_id]
         return
-
-    await event.reply(
-        "👋 Welcome to the Reactions Bot!\n\n"
-        "Forward me a post from your channel or group to get started."
-    )
 
 async def main():
     await client.start()
